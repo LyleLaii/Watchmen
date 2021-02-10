@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test-scheduler
+  template:
+    metadata:
+      labels:
+        app: test-scheduler
+    spec:
+      schedulerName: Watchmen
+      containers:
+        - image: debian:stretch-slim
+          command:
+            - "sleep"
+            - "300"
+          imagePullPolicy: IfNotPresent
+          name: test-container

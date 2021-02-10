@@ -1,0 +1,70 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: watchmen-config
+  namespace: kube-system
+data:
+  watchmen-config.yaml: |
+    apiVersion: kubescheduler.config.k8s.io/v1alpha1
+    kind: KubeSchedulerConfiguration
+    schedulerName: Watchmen
+    leaderElection:
+      leaderElect: true
+      lockObjectName: watchmen
+      lockObjectNamespace: kube-system
+    plugins:
+      preFilter:
+        enabled:
+          - name: "Watchmen"
+      filter:
+        enabled:
+          - name: "Watchmen"
+    pluginConfig:
+      - name: "Watchmen"
+        args:
+          prometheus_config:
+            url: "http://prometheus-operated.prometheus.svc:9090"
+            verify_tls: false
+          metric_config:
+            used_limit_ratio: 0.8
+            range_ratio: 0.8
+            predict_limit_ratio: 0.8
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: watchmen
+  namespace: kube-system
+  labels:
+    component: watchmen
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: watchmen
+  template:
+    metadata:
+      labels:
+        component: watchmen
+    spec:
+      serviceAccount: watchmen
+      priorityClassName: system-cluster-critical
+      volumes:
+        - name: watchmen-config
+          configMap:
+            name: watchmen-config
+      containers:
+        - name: watchmen
+          image: watchmen:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - watchmen
+            - --config=/etc/kubernetes/watchmen-config.yaml
+            - --v=3
+          resources:
+            requests:
+              cpu: "50m"
+          volumeMounts:
+            - name: watchmen-config
+              mountPath: /etc/kubernetes
