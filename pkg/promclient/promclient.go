@@ -76,9 +76,9 @@ func (p *PromClient) RangeQuery(param RangerQueryParam) (RangerQueryResult, erro
 }
 
 
-func (p *PromClient) FetchRangeData(queryStr string, dayRange int, timeStep string) (RangerQueryResult, error) {
+func (p *PromClient) FetchRangeData(queryStr string, dayRange time.Duration, timeStep string) (RangerQueryResult, error) {
 	now := time.Now()
-	pastDate := now.AddDate(0, 0, -dayRange)
+	pastDate := now.Add(-dayRange)
 	nowStr := now.Format(time.RFC3339)
 	pastDateStr := pastDate.Format(time.RFC3339)
 	rqp := RangerQueryParam{

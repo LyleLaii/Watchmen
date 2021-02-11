@@ -6,16 +6,17 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"watchmen/utils/duration"
 )
 
 const (
-	TimeRangeDays     = 3
+	TimeRangeDays     = "3d"
 	TimeStep          = "5m"
 	UsedLimitRatio    = 0.8
 	RangeRatio        = 0.8
-	PredictDuration   = 24.0 * 60.0 * 60.0
+	PredictDuration   = "24h"
 	PredictLimitRatio = 0.8
-	MetricUpdateTime  = 300.0
+	MetricUpdateTime  = "5m"
 )
 
 
@@ -26,21 +27,26 @@ const NodeMemUsedPercent = "(node_memory_MemTotal_bytes{instance=~\"%s.*\"} - no
 const MemUsedPercent = "memusedper"
 
 type MetricConfig struct {
-	TimeRangeDays     int     `json:"time_range_days,omitempty"`
-	TimeStep          string  `json:"time_step,omitempty"`
-	UsedLimitRatio    float64 `json:"used_limit_ratio,omitempty"`
-	RangeRatio        float64 `json:"range_ratio,omitempty"`
-	PredictDuration   float64 `json:"predict_duration,omitempty"`
-	PredictLimitRatio float64 `json:"predict_limit_ratio,omitempty"`
-	MetricUpdateTime  float64 `json:"metric_update_time,omitempty"`
+	TimeRangeDays     duration.Duration `json:"time_range_days,omitempty"`
+	TimeStep          duration.Duration `json:"time_step,omitempty"`
+	UsedLimitRatio    float64           `json:"used_limit_ratio,omitempty"`
+	RangeRatio        float64           `json:"range_ratio,omitempty"`
+	PredictDuration   duration.Duration `json:"predict_duration,omitempty"`
+	PredictLimitRatio float64           `json:"predict_limit_ratio,omitempty"`
+	MetricUpdateTime  duration.Duration `json:"metric_update_time,omitempty"`
 }
 
 func genMetricConfig(m MetricConfig) *MetricConfig {
-	if m.TimeRangeDays == 0 {
-		m.TimeRangeDays = TimeRangeDays
+	zeroDuration := duration.Duration{Duration: time.Duration(0)}
+
+	if m.TimeRangeDays == zeroDuration {
+		m.TimeRangeDays, _ = duration.ParseDurationN(TimeRangeDays)
 	}
-	if m.TimeStep == "" {
-		m.TimeStep = TimeStep
+	if m.TimeRangeDays == zeroDuration {
+		m.TimeRangeDays, _ = duration.ParseDurationN(TimeRangeDays)
+	}
+	if m.TimeStep == zeroDuration {
+		m.TimeStep, _ = duration.ParseDurationN(TimeStep)
 	}
 	if m.UsedLimitRatio == 0 {
 		m.UsedLimitRatio = UsedLimitRatio
@@ -48,11 +54,15 @@ func genMetricConfig(m MetricConfig) *MetricConfig {
 	if m.RangeRatio == 0 {
 		m.RangeRatio = RangeRatio
 	}
-	if m.MetricUpdateTime == 0 {
-		m.MetricUpdateTime = MetricUpdateTime
+	if m.MetricUpdateTime == zeroDuration {
+		m.MetricUpdateTime, _ = duration.ParseDurationN(MetricUpdateTime)
 	}
-	if m.PredictDuration == 0 {
-		m.PredictDuration = PredictDuration
+	if m.PredictDuration == zeroDuration {
+		m.PredictDuration, _ = duration.ParseDurationN(PredictDuration)
+	}
+
+	if m.PredictLimitRatio == 0 {
+		m.PredictLimitRatio = PredictLimitRatio
 	}
 
 	return &m
@@ -102,7 +112,7 @@ func (n nodesMetrics) GetNodeTwoDimeData(nodeIP string) (x []float64, y []float6
 }
 
 func (w *Watchmen) getNodesMemUsedPercent() (nodesData nodesMetrics) {
-	data, err := w.promClient.FetchRangeData(NodesMemUsedPercent, w.metricConf.TimeRangeDays, w.metricConf.TimeStep)
+	data, err := w.promClient.FetchRangeData(NodesMemUsedPercent, w.metricConf.TimeRangeDays.TimeDuration(), w.metricConf.TimeStep.String())
 	if err != nil {
 		klog.Errorf("fetchPrometheusData get error: %s", err)
 	}

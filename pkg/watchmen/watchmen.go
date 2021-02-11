@@ -43,7 +43,7 @@ func (w *Watchmen) PreFilter(ctx context.Context, state *framework.CycleState, p
 	w.eventRecorder.Event(pod, v1.EventTypeNormal, "PreFilter", "Prepare Prometheus Data")
 	now := time.Now()
 	klog.V(5).Info(fmt.Printf("Previous Date is %s", w.promData.date.Format(time.RFC3339)))
-	if now.Sub(w.promData.date).Seconds() > w.metricConf.MetricUpdateTime {
+	if now.Sub(w.promData.date).Seconds() > w.metricConf.MetricUpdateTime.Seconds() {
 		klog.V(3).Infof("Now fetch prometheus data cause have not acquired or is outdated")
 		w.promData.m.Lock()
 		defer w.promData.m.Unlock()
@@ -76,7 +76,7 @@ func (w *Watchmen) Filter(ctx context.Context, state *framework.CycleState, pod 
 		//w.eventRecorder.Event(pod, v1.EventTypeNormal, "Filter", "Unschedulable")
 		return framework.NewStatus(framework.Unschedulable, "ResourceLack")
 	}
-	if w.nodeOverusedMemLinearPredict(nodeIP, w.metricConf.PredictDuration) {
+	if w.nodeOverusedMemLinearPredict(nodeIP, w.metricConf.PredictDuration.Seconds()) {
 		return framework.NewStatus(framework.Unschedulable, "PredictResourceLack")
 	}
 	// w.eventRecorder.Event(pod, v1.EventTypeNormal, "Filter", "Success")
@@ -91,6 +91,8 @@ func New(configuration *runtime.Unknown, f framework.FrameworkHandle) (framework
 		return nil, err
 	}
 	klog.V(3).Infof("get plugin config args: %+v", args)
+	mc := genMetricConfig(args.MetricConf)
+	klog.V(3).Infof("gen plugin config args: %+v", mc)
 	prom, err := pc.New(args.PromConfig)
 	if err != nil {
 		klog.Errorf("create plugin  get error: %s", err)
@@ -100,7 +102,7 @@ func New(configuration *runtime.Unknown, f framework.FrameworkHandle) (framework
 		handle: f,
 		promClient: prom,
 		eventRecorder: event.CreateEventRecorder(Name, event.CreateKubeClient()),
-		metricConf: genMetricConfig(args.MetricConf),
+		metricConf: mc,
 		promData: &PromData{
 			date:         time.Time{},
 			metricsDatas: make(map[string]nodesMetrics),
