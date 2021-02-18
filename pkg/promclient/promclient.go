@@ -1,8 +1,7 @@
 package promclient
 
 import (
-	"errors"
-	"fmt"
+	"github.com/pkg/errors"
 	"time"
 	"watchmen/utils/requestes"
 )
@@ -37,7 +36,7 @@ func New(conf PromConfig) (*PromClient, error) {
 		return &PromClient{
 			promURL:    "",
 			httpClient: nil,
-		}, errors.New(fmt.Sprintf("create PromClient get error: %s", err))
+		}, errors.Wrap(err, "create PromClient failed")
 	}
 
 	return &PromClient{
@@ -50,12 +49,12 @@ func New(conf PromConfig) (*PromClient, error) {
 func (p *PromClient) Query(param QueryParam) (QueryResult, error) {
 	data, err := p.httpClient.Get(p.promURL + InstanceQuery, requestes.AddQueryParam(param))
 	if err != nil {
-		return QueryResult{}, errors.New(fmt.Sprintf("query data error: %s", err))
+		return QueryResult{}, errors.Wrap(err, "query data failed")
 	}
 	d := QueryResult{}
 
 	if err := data.BindJSON(&d); err != nil {
-		return QueryResult{}, errors.New(fmt.Sprintf("query data error: %s", err))
+		return QueryResult{}, errors.Wrap(err, "query data failed")
 	}
 	return d, nil
 }
@@ -63,13 +62,13 @@ func (p *PromClient) Query(param QueryParam) (QueryResult, error) {
 func (p *PromClient) RangeQuery(param RangerQueryParam) (RangerQueryResult, error) {
 	data, err := p.httpClient.Get(p.promURL + RangeQuery, requestes.AddQueryParam(param))
 	if err != nil {
-		fmt.Printf("Query Instance Data error: %v", err)
-		return RangerQueryResult{}, err
+		//fmt.Printf("Query Instance Data error: %v", err)
+		return RangerQueryResult{}, errors.Wrap(err, "query instance data failed")
 	}
 	d := RangerQueryResult{}
 
 	if err := data.BindJSON(&d); err != nil {
-		return RangerQueryResult{}, errors.New(fmt.Sprintf("query data error: %s", err))
+		return RangerQueryResult{}, errors.Wrap(err, "query data failed")
 	}
 
 	return d, nil

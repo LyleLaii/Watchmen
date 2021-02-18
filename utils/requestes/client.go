@@ -5,8 +5,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
 	"reflect"
@@ -54,7 +54,7 @@ func New(c RequestsConfig) (*RequestsClient, error) {
 	if c.CaCertPath != "" {
 		caCrt, err := ioutil.ReadFile(c.CaCertPath)
 		if err != nil {
-			return &RequestsClient{}, errors.New(fmt.Sprintf("read ca cert file error: %s", err))
+			return &RequestsClient{}, errors.Wrap(err, "read ca cert file failed")
 		}
 		pool.AppendCertsFromPEM(caCrt)
 	}
@@ -66,7 +66,7 @@ func New(c RequestsConfig) (*RequestsClient, error) {
 		}
 		cliCrt, err := tls.LoadX509KeyPair(c.CaCrtPath, c.CaKeyPath)
 		if err != nil {
-			return &RequestsClient{}, errors.New(fmt.Sprintf("load x509 key pair error: %s", err))
+			return &RequestsClient{}, errors.Wrap(err, "load x509 key pair failed")
 		}
 	    Certificates = []tls.Certificate{cliCrt}
 	}
@@ -142,7 +142,7 @@ func FormData(data map[string]string) PostData {
 
 		req, err := http.NewRequest("POST", url, strings.NewReader(data))
 		if err != nil {
-			return &http.Request{}, err
+			return &http.Request{}, errors.Wrap(err, "Gen FormData failed")
 		}
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
@@ -157,11 +157,11 @@ func JsonData(data interface{}) PostData {
 	add := func(url string) (*http.Request, error) {
 		b ,err := json.Marshal(data)
 		if err != nil {
-			return &http.Request{}, errors.New(fmt.Sprintf("json format error: %s", err))
+			return &http.Request{}, errors.Wrap(err, "json format error")
 		}
 		req, err := http.NewRequest("POST", url, bytes.NewBuffer(b))
 		if err != nil {
-			return &http.Request{}, errors.New(fmt.Sprintf("create request error: %s", err))
+			return &http.Request{}, errors.Wrap(err, "crete request failed")
 		}
 		req.Header.Add("Content-Type", "application/json;charset=utf-8")
 
@@ -183,7 +183,7 @@ func generateRepData(resp *http.Response) (ResponseData, error) {
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return ResponseData{status: status, statusCode: statusCode, header: headers, data: nil}, errors.New(fmt.Sprintf("read response data error cause: %s", err))
+		return ResponseData{status: status, statusCode: statusCode, header: headers, data: nil}, errors.Wrap(err, "read response data failed")
 	}
 
 	return ResponseData{status: status, statusCode: statusCode, header: headers, data: body}, nil
@@ -193,7 +193,7 @@ func (r *RequestsClient) Get(url string, extraConfigs ...ExtraConfig) (ResponseD
 	req, err := http.NewRequest("GET", url, nil)
 
 	if err != nil {
-		return ResponseData{}, errors.New(fmt.Sprintf("post method create request error cause: %s", err))
+		return ResponseData{}, errors.Wrap(err, "get method create request failed")
 	}
 
 	for _, extraConfig := range extraConfigs {
@@ -203,7 +203,7 @@ func (r *RequestsClient) Get(url string, extraConfigs ...ExtraConfig) (ResponseD
 	resp, err := r.client.Do(req)
 
 	if err != nil {
-		return ResponseData{}, errors.New(fmt.Sprintf("do get error cause: %s", err))
+		return ResponseData{}, errors.Wrap(err, "http do get failed")
 	}
 
 	return generateRepData(resp)
@@ -212,7 +212,7 @@ func (r *RequestsClient) Get(url string, extraConfigs ...ExtraConfig) (ResponseD
 func (r *RequestsClient) Post(url string, postData PostData, extraConfigs ...ExtraConfig) (ResponseData, error) {
 	req, err := postData(url)
 	if err != nil {
-		return ResponseData{}, errors.New(fmt.Sprintf("post method get error: %s", err))
+		return ResponseData{}, errors.Wrap(err, "post method create request failed")
 	}
 	for _, extraConfig := range extraConfigs {
 		extraConfig(req)
@@ -221,7 +221,7 @@ func (r *RequestsClient) Post(url string, postData PostData, extraConfigs ...Ext
 	resp, err := r.client.Do(req)
 
 	if err != nil {
-		return ResponseData{}, errors.New(fmt.Sprintf("do post error cause: %s", err))
+		return ResponseData{}, errors.Wrap(err, "http do post failed")
 	}
 
 	return generateRepData(resp)
